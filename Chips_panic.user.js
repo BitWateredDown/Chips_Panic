@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Torn Panic Button (Two-Stage)
+// @name         Torn Panic Button
 // @namespace    jim.panic.button
 // @version      1.1
 // @description  Panic deposit button for Torn
