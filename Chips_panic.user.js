@@ -5,13 +5,16 @@
 // @description  Panic deposit button for Torn
 // @match        https://www.torn.com/*
 // @grant        GM_addStyle
+// @updateURL    https://raw.githubusercontent.com/BitWateredDown/Chips_Panic/refs/heads/main/Chips_panic.user.js
+// @downloadURL  https://raw.githubusercontent.com/BitWateredDown/Chips_Panic/refs/heads/main/Chips_panic.user.js
+
 // ==/UserScript==
 
 (function() {
     'use strict';
 
     const TARGET_URL = "https://www.torn.com/factions.php?step=your#/tab=armoury";
-    const MIN_MONEY = 5000000; // 5m threshold
+    const MIN_MONEY = 50; // 5m threshold
 
     // --- STYLE ---
     GM_addStyle(`
