@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Torn Panic Button
+// @name         Torn Panic Button (Two-Stage)
 // @namespace    jim.panic.button
-// @version      1.0
+// @version      1.1
 // @description  Panic deposit button for Torn
 // @match        https://www.torn.com/*
 // @grant        GM_addStyle
@@ -14,9 +14,10 @@
     'use strict';
 
     const TARGET_URL = "https://www.torn.com/factions.php?step=your#/tab=armoury";
-    const MIN_MONEY = 50; // 5m threshold
+    const MIN_MONEY = 5000000;
 
-    // --- STYLE ---
+    let stage = 0; // 0 = first click, 1 = second click
+
     GM_addStyle(`
         #panicBtn {
             position: fixed;
@@ -39,33 +40,12 @@
         }
     `);
 
-    // --- SOUND ---
-    const alertSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-
-    // --- API CHECK FOR ATTACKS ---
-    async function checkAttack() {
-        try {
-            const key = ""; // <-- Insert your API key if you want attack detection
-            if (!key) return;
-
-            const res = await fetch(`https://api.torn.com/user/?selections=notifications&key=${key}`);
-            const data = await res.json();
-
-            if (data.notifications?.attacked) {
-                alertSound.play();
-            }
-        } catch (e) {}
-    }
-    setInterval(checkAttack, 15000); // check every 15s
-
-    // --- GET MONEY ON HAND ---
     function getMoneyOnHand() {
         const el = document.querySelector("[data-money]");
         if (!el) return 0;
         return Number(el.getAttribute("data-money")) || 0;
     }
 
-    // --- CREATE BUTTON ---
     function createButton() {
         if (document.getElementById("panicBtn")) return;
 
@@ -73,31 +53,61 @@
         btn.id = "panicBtn";
         btn.textContent = "PANIC";
 
-        btn.addEventListener("click", () => {
-            if (!location.href.includes("factions.php?step=your#/tab=armoury")) {
-                location.href = TARGET_URL;
-                return;
-            }
-            handleDeposit();
-        });
+        btn.addEventListener("click", handleClick);
 
         document.body.appendChild(btn);
     }
 
-    // --- DEPOSIT HANDLER ---
-    function handleDeposit() {
-        const input = document.querySelector("input.amount.input-money[data-money]");
-        const depositBtn = document.querySelector("button.torn-btn[i-data]");
+    function handleClick() {
+        const onArmoury = location.href.includes("factions.php?step=your#/tab=armoury");
 
-        if (!input || !depositBtn) return;
+        if (!onArmoury) {
+            stage = 0; // reset stage when navigating
+            location.href = TARGET_URL;
+            return;
+        }
 
-        const amount = input.getAttribute("data-money");
-        input.value = amount;
-
-        depositBtn.click();
+        // On the armoury page
+        if (stage === 0) {
+            populateAmount();
+            stage = 1;
+        } else {
+            submitDeposit();
+            stage = 0; // reset after deposit
+        }
     }
 
-    // --- SHOW BUTTON ONLY IF MONEY > 5M ---
+    function populateAmount() {
+        waitForElement("input.amount.input-money[data-money]", input => {
+            const amount = input.getAttribute("data-money");
+            input.value = amount;
+        });
+    }
+
+    function submitDeposit() {
+        waitForElement("button.torn-btn[i-data]", btn => {
+            btn.click();
+        });
+    }
+
+    function waitForElement(selector, callback) {
+        const el = document.querySelector(selector);
+        if (el) {
+            callback(el);
+            return;
+        }
+
+        const obs = new MutationObserver(() => {
+            const el2 = document.querySelector(selector);
+            if (el2) {
+                obs.disconnect();
+                callback(el2);
+            }
+        });
+
+        obs.observe(document.body, { childList: true, subtree: true });
+    }
+
     function maybeShowButton() {
         const money = getMoneyOnHand();
         if (money > MIN_MONEY) {
@@ -105,7 +115,6 @@
         }
     }
 
-    // Run on load + observe DOM changes
     maybeShowButton();
 
     const obs = new MutationObserver(maybeShowButton);
